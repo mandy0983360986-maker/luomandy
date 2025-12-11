@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import React, { useState, createContext, useContext } from 'react';
 import { 
   LayoutDashboard, 
   Wallet, 
@@ -10,6 +9,47 @@ import {
   X
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
+
+// --- Internal Router Implementation ---
+// Replaces react-router-dom to fix missing module errors
+
+interface RouterContextType {
+  path: string;
+  navigate: (path: string) => void;
+}
+
+export const RouterContext = createContext<RouterContextType>({
+  path: '/',
+  navigate: () => {},
+});
+
+export const useLocation = () => {
+  const { path } = useContext(RouterContext);
+  return { pathname: path };
+};
+
+export const useNavigate = () => {
+  const { navigate } = useContext(RouterContext);
+  return navigate;
+};
+
+export const Link: React.FC<{ to: string; className?: string; children: React.ReactNode; onClick?: () => void }> = ({ to, className, children, onClick }) => {
+  const navigate = useNavigate();
+  return (
+    <a
+      href={`#${to}`}
+      className={className}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate(to);
+        if (onClick) onClick();
+      }}
+    >
+      {children}
+    </a>
+  );
+};
+// --------------------------------------
 
 interface LayoutProps {
   children: React.ReactNode;

@@ -1,12 +1,46 @@
 # WealthFlow - Personal Finance System
 
-This is a React-based Personal Finance Application.
+A React-based Personal Finance Application powered by Firebase and Gemini AI.
 
-## Deployment to GitHub Pages
+## Deployment Process (GitHub Pages + Firebase)
 
-1.  **Repository Setup**: Push this code to a GitHub repository.
-2.  **Enable Pages**: Go to Settings -> Pages. Select 'GitHub Actions' as the source.
-3.  **Workflow**: Create `.github/workflows/deploy.yml`:
+This project is configured to deploy automatically to GitHub Pages using GitHub Actions. This process ensures your API keys are injected securely during the build process without being committed to the source code.
+
+### 1. Firebase Setup
+1.  Go to [Firebase Console](https://console.firebase.google.com/).
+2.  Create a new project.
+3.  **Authentication**: Enable **Email/Password** sign-in method.
+4.  **Firestore**: Create a **Firestore Database** in **production mode**.
+    *   Set rules to allow authenticated users to read/write their own data:
+    ```javascript
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        match /users/{userId}/{document=**} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+      }
+    }
+    ```
+5.  **Project Settings**: Go to Project Settings -> General -> Your apps -> Add Web App.
+6.  Copy the `firebaseConfig` values (apiKey, authDomain, projectId, etc.).
+
+### 2. GitHub Secrets Setup
+To keep your keys secure, store them in GitHub Repository Secrets.
+
+1.  Go to your GitHub Repository -> **Settings** -> **Secrets and variables** -> **Actions**.
+2.  Click **New repository secret** and add the following keys (copy values from your Firebase config and Gemini API):
+
+    *   `GEMINI_API_KEY`: Your Google Gemini API Key.
+    *   `REACT_APP_FIREBASE_API_KEY`: Value from `apiKey`.
+    *   `REACT_APP_FIREBASE_AUTH_DOMAIN`: Value from `authDomain`.
+    *   `REACT_APP_FIREBASE_PROJECT_ID`: Value from `projectId`.
+    *   `REACT_APP_FIREBASE_STORAGE_BUCKET`: Value from `storageBucket`.
+    *   `REACT_APP_FIREBASE_MESSAGING_SENDER_ID`: Value from `messagingSenderId`.
+    *   `REACT_APP_FIREBASE_APP_ID`: Value from `appId`.
+
+### 3. GitHub Actions Workflow
+Create a file named `.github/workflows/deploy.yml` in your repository with the following content. This script will run on every push to the `main` branch.
 
 ```yaml
 name: Deploy to GitHub Pages
@@ -26,16 +60,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+      
       - name: Install Dependencies
         run: npm ci
+      
       - name: Build
         run: npm run build
         env:
-          REACT_APP_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Inject Secrets into Environment Variables during Build
+          API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REACT_APP_FIREBASE_API_KEY: ${{ secrets.REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.REACT_APP_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ secrets.REACT_APP_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ secrets.REACT_APP_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID: ${{ secrets.REACT_APP_FIREBASE_APP_ID }}
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -53,16 +98,17 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
-4. **Secrets**: Go to Settings -> Secrets and variables -> Actions. Add `GEMINI_API_KEY`.
+### 4. Deploy
+Simply push your code to the `main` branch. The Action will trigger, build the app with the secrets, and deploy it.
 
-## Firebase Integration (Mocked in Demo)
+## Local Development
 
-This demo uses `services/storageService.ts` to simulate a database using `localStorage`. To use real Firebase:
-
-1.  Create a Firebase Project at console.firebase.google.com.
-2.  Enable **Authentication** (Email/Password) and **Firestore**.
-3.  Install Firebase: `npm install firebase`.
-4.  Create `src/firebase.ts` with your config.
-5.  Replace the functions in `storageService.ts` with real Firestore calls:
-    *   `localStorage.getItem` -> `getDocs(collection(db, 'transactions'))`
-    *   `localStorage.setItem` -> `addDoc(collection(db, 'transactions'), data)`
+1.  Create a `.env` file in the root directory.
+2.  Add the variables:
+    ```
+    API_KEY=your_gemini_key
+    REACT_APP_FIREBASE_API_KEY=your_firebase_key
+    ...
+    ```
+3.  Run `npm install`.
+4.  Run `npm start`.

@@ -2,8 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { Transaction, StockHolding, Account } from "../types";
 
 // Initialize the API client
-// Note: In a real production build, use a backend proxy to hide the key, 
-// or strictly restrict the key in Google Cloud Console if using client-side.
+// The API_KEY is injected at build time via GitHub Secrets or .env file
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 export const geminiService = {
@@ -17,7 +16,7 @@ export const geminiService = {
   ): Promise<string> => {
     
     if (!process.env.API_KEY) {
-        return "API Key not found. Please configure GitHub Secrets or your environment to enable AI insights.";
+        return "⚠️ API Key missing. Please configure GEMINI_API_KEY in GitHub Secrets or your local .env file.";
     }
 
     try {
