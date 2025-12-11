@@ -9,11 +9,13 @@ import {
   collection, 
   doc, 
   getDocs, 
+  getDoc,
   addDoc, 
   deleteDoc, 
   updateDoc, 
   setDoc,
   query,
+  where,
   orderBy
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -74,10 +76,6 @@ export const storageService = {
     }
 
     // 3. Add Mock Transactions
-    // Note: Transactions need valid account IDs to link correctly. 
-    // For simplicity in this demo, we skip linking strictly or just add them as standalone.
-    // To do it properly, we would await the account creation above.
-    // Here we just add them for visual populating.
     for (const tx of MOCK_TRANSACTIONS) {
        const { id, ...data } = tx;
        batchPromises.push(addDoc(collection(db, 'users', userId, COLLECTIONS.TRANSACTIONS), data));
@@ -141,13 +139,7 @@ export const storageService = {
     
     // Update Account Balance
     const accountRef = doc(db, 'users', user.uid, COLLECTIONS.ACCOUNTS, tx.accountId);
-    const accountSnap = await getDocs(query(collection(db, 'users', user.uid, COLLECTIONS.ACCOUNTS)));
-    // We need to fetch the specific account to update it.
-    // In a real app, use a Transaction (Firestore Transaction) for atomicity.
-    // Here we do a simple read-modify-write.
-    // Optimization: The UI passes accountId, but we need the current balance.
-    // We'll just fetch all accounts to find it or getDoc.
-    const accDoc = await import('firebase/firestore').then(mod => mod.getDoc(accountRef));
+    const accDoc = await getDoc(accountRef);
     
     if (accDoc.exists()) {
         const accData = accDoc.data() as Account;
@@ -178,19 +170,9 @@ export const storageService = {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Find the stock doc by symbol
-    const q = query(collection(db, 'users', user.uid, COLLECTIONS.STOCKS), import('firebase/firestore').then(mod => mod.where('symbol', '==', symbol)));
-    // Note: Can't easily use await inside the query construction with dynamic imports if not structured well.
-    // Simplified: Fetch all and find, or assume ID is symbol? 
-    // Let's rely on fetching all for this simple demo, or query:
-    const qRef = query(collection(db, 'users', user.uid, COLLECTIONS.STOCKS), import('firebase/firestore').then(mod => mod.where('symbol', '==', symbol)) as any); 
-    // Actually standard query:
-    // We need to match where symbol == symbol.
-    // Since we didn't store ID as symbol, we query.
-    
-    const snapshot = await getDocs(query(collection(db, 'users', user.uid, COLLECTIONS.STOCKS)));
-    // Filter client side or do proper query
-    const targetDoc = snapshot.docs.find(d => d.data().symbol === symbol);
+    const q = query(collection(db, 'users', user.uid, COLLECTIONS.STOCKS), where('symbol', '==', symbol));
+    const snapshot = await getDocs(q);
+    const targetDoc = snapshot.docs[0];
     
     if (targetDoc) {
         await updateDoc(targetDoc.ref, { 
@@ -209,8 +191,9 @@ export const storageService = {
 
     // Update Holding
     const stocksRef = collection(db, 'users', user.uid, COLLECTIONS.STOCKS);
-    const snapshot = await getDocs(stocksRef);
-    const existingDoc = snapshot.docs.find(d => d.data().symbol === trade.symbol);
+    const q = query(stocksRef, where('symbol', '==', trade.symbol));
+    const snapshot = await getDocs(q);
+    const existingDoc = snapshot.docs[0];
 
     if (trade.type === 'Buy') {
         if (existingDoc) {
